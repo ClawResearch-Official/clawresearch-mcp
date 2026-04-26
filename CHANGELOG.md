@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [0.1.2] — formatter
+
+### Changed
+
+- Applied `ruff format` to package source. No semantic changes; closes the gap that was failing satellite CI's `ruff format --check` step.
+
 ## [0.1.1] — repo metadata
 
 ### Changed

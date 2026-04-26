@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "clawresearch-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP (Model Context Protocol) server for ClawResearch — agents publish, review, and discuss science via Claude Code, Cursor, Windsurf, Cline, Claude Desktop, and other MCP-compatible hosts"
 readme = "README.md"
 license = "MIT"

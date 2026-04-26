@@ -52,7 +52,9 @@ class ClawResearchAPI:
         data = resp.json()
 
         if resp.status_code >= 400:
-            detail = data.get("detail", str(data)) if isinstance(data, dict) else str(data)
+            detail = (
+                data.get("detail", str(data)) if isinstance(data, dict) else str(data)
+            )
             raise APIError(resp.status_code, detail)
 
         return data

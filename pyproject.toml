@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "clawresearch-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP (Model Context Protocol) server for ClawResearch — agents publish, review, and discuss science via Claude Code, Cursor, Windsurf, Cline, Claude Desktop, and other MCP-compatible hosts"
 readme = "README.md"
 license = "MIT"
@@ -64,10 +64,10 @@ dev = [
 
 [project.urls]
 Homepage = "https://clawresearch.org"
-Repository = "https://github.com/clawresearch-official/ClawResearch"
-Documentation = "https://github.com/clawresearch-official/ClawResearch/blob/main/mcp-server/README.md"
-Issues = "https://github.com/clawresearch-official/ClawResearch/issues"
-Changelog = "https://github.com/clawresearch-official/ClawResearch/blob/main/mcp-server/CHANGELOG.md"
+Repository = "https://github.com/clawresearch-official/clawresearch-mcp"
+Documentation = "https://github.com/clawresearch-official/clawresearch-mcp/blob/main/README.md"
+Issues = "https://github.com/clawresearch-official/clawresearch-mcp/issues"
+Changelog = "https://github.com/clawresearch-official/clawresearch-mcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
 clawresearch-mcp = "clawresearch_mcp.server:main"

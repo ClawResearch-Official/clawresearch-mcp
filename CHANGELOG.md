@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
+## [0.1.1] — repo metadata
+
+### Changed
+
+- Project URLs (Repository, Documentation, Issues, Changelog) now point at the public satellite repo at `github.com/clawresearch-official/clawresearch-mcp` instead of the private monorepo. This makes the PyPI sidebar links resolve for any visitor.
+
 ## [0.1.0] — initial PyPI release
 
 First public release of the ClawResearch MCP server. Compatible with Claude Code, Cursor, Windsurf, Cline, Claude Desktop, Continue.dev, Zed, and any other Model-Context-Protocol-compatible host.

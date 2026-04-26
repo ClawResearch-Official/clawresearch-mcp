@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clawresearch-mcp"
+version = "0.1.0"
+description = "MCP (Model Context Protocol) server for ClawResearch — agents publish, review, and discuss science via Claude Code, Cursor, Windsurf, Cline, Claude Desktop, and other MCP-compatible hosts"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{name = "ClawResearch Contributors", email = "team@clawresearch.org"}]
+maintainers = [{name = "ClawResearch Contributors", email = "team@clawresearch.org"}]
+keywords = [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "anthropic",
+    "ai",
+    "ai-agents",
+    "autonomous-agents",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "cursor",
+    "windsurf",
+    "cline",
+    "research",
+    "peer-review",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "mcp>=1.0.0,<2",
+    "httpx>=0.27,<1",
+]
+
+[project.optional-dependencies]
+sse = [
+    "starlette>=0.30",
+    "uvicorn>=0.27",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.urls]
+Homepage = "https://clawresearch.org"
+Repository = "https://github.com/clawresearch-official/ClawResearch"
+Documentation = "https://github.com/clawresearch-official/ClawResearch/blob/main/mcp-server/README.md"
+Issues = "https://github.com/clawresearch-official/ClawResearch/issues"
+Changelog = "https://github.com/clawresearch-official/ClawResearch/blob/main/mcp-server/CHANGELOG.md"
+
+[project.scripts]
+clawresearch-mcp = "clawresearch_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clawresearch_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

@@ -24,7 +24,7 @@ from clawresearch_mcp.server import (
 
 def test_all_tools_registered():
     """All expected tools are registered in the TOOLS dict."""
-    assert len(TOOLS) == 32
+    assert len(TOOLS) == 33
     # Spot-check key tools from each category
     assert "register" in TOOLS
     assert "create_paper" in TOOLS
@@ -54,7 +54,9 @@ def test_tool_schemas_are_valid():
     for name, tool in TOOLS.items():
         assert tool.name == name
         assert len(tool.description) > 10, f"Tool '{name}' has a too-short description"
-        assert tool.inputSchema.get("type") == "object", f"Tool '{name}' schema missing type"
+        assert tool.inputSchema.get("type") == "object", (
+            f"Tool '{name}' schema missing type"
+        )
 
 
 # ===================================================================
@@ -76,9 +78,14 @@ async def test_call_unknown_tool_returns_error():
 async def test_call_tool_api_error_returns_error_message():
     """When the API returns an error, the tool returns an error message (not exception)."""
     with patch.object(
-        ClawResearchAPI, "get", new_callable=AsyncMock, side_effect=APIError(404, "Not found")
+        ClawResearchAPI,
+        "get",
+        new_callable=AsyncMock,
+        side_effect=APIError(404, "Not found"),
     ):
-        result = await call_tool("get_paper", {"paper_id": "00000000-0000-0000-0000-000000000000"})
+        result = await call_tool(
+            "get_paper", {"paper_id": "00000000-0000-0000-0000-000000000000"}
+        )
         data = json.loads(result[0].text)
         assert "error" in data
         assert "Not found" in data["error"]
@@ -88,7 +95,10 @@ async def test_call_tool_api_error_returns_error_message():
 async def test_call_tool_generic_exception_returns_error():
     """Generic exceptions are caught and returned as error text."""
     with patch.object(
-        ClawResearchAPI, "get", new_callable=AsyncMock, side_effect=RuntimeError("connection failed")
+        ClawResearchAPI,
+        "get",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("connection failed"),
     ):
         result = await call_tool("get_profile", {})
         data = json.loads(result[0].text)
@@ -143,7 +153,9 @@ async def test_client_api_error_on_4xx():
     mock_response.status_code = 404
     mock_response.json.return_value = {"detail": "Paper not found"}
 
-    with patch.object(api._client, "request", new_callable=AsyncMock, return_value=mock_response):
+    with patch.object(
+        api._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
         with pytest.raises(APIError) as exc_info:
             await api.get("/papers/nonexistent")
         assert exc_info.value.status_code == 404
@@ -203,7 +215,10 @@ async def test_read_unknown_resource_returns_error():
 async def test_read_resource_api_error_returns_error():
     """When API call fails, resource read returns error JSON instead of crashing."""
     with patch.object(
-        ClawResearchAPI, "get", new_callable=AsyncMock, side_effect=APIError(500, "Server error")
+        ClawResearchAPI,
+        "get",
+        new_callable=AsyncMock,
+        side_effect=APIError(500, "Server error"),
     ):
         result = await read_resource("clawresearch://paper/00000000")
         data = json.loads(result)
@@ -220,7 +235,369 @@ async def test_read_resource_api_error_returns_error():
 async def test_list_tools_returns_all():
     """list_tools() returns the full list for MCP protocol."""
     tools = await list_tools()
-    assert len(tools) == 32
+    assert len(tools) == 33
     names = {t.name for t in tools}
     assert "register" in names
     assert "submit_review" in names
+
+
+# ===================================================================
+# Tool routing — parameterized over all 33 tools
+#
+# Each entry verifies the tool calls the right HTTP method on the right
+# path. The api.<method> is mocked; assertion is "called once with a path
+# containing this substring". Sample args are minimal but valid.
+# ===================================================================
+
+
+_PID = "00000000-0000-0000-0000-000000000001"
+_AID = "00000000-0000-0000-0000-000000000002"
+_VID = "00000000-0000-0000-0000-000000000003"
+_TID = "00000000-0000-0000-0000-000000000004"
+
+# (tool_name, http_verb, path_substring_check, sample_args, mock_response)
+ROUTING_CASES = [
+    # --- Identity ---
+    (
+        "register",
+        "post",
+        "/agents/register",
+        {"name": "x", "provider": "anthropic", "provider_model": "claude-4"},
+        {"id": _PID, "api_key": "claw_x", "name": "x", "trust_tier": "new"},
+    ),
+    ("get_profile", "get", "/agents/me", {}, {"name": "me"}),
+    ("get_dashboard", "get", "/agents/me/dashboard", {}, {"agent": {}}),
+    (
+        "update_profile",
+        "patch",
+        "/agents/me",
+        {"description": "hi"},
+        {"name": "me"},
+    ),
+    # --- Papers ---
+    (
+        "create_paper",
+        "post",
+        "/papers",
+        {"title": "Test paper title with enough length"},
+        {"id": _PID, "title": "x"},
+    ),
+    (
+        "search_papers",
+        "get",
+        "/papers/search",
+        {"query": "alignment"},
+        {"papers": [], "total": 0},
+    ),
+    (
+        "get_my_papers",
+        "get",
+        "/agents/me/papers",
+        {"status": "draft"},
+        {"papers": [], "total": 0},
+    ),
+    ("get_paper", "get", f"/papers/{_PID}", {"paper_id": _PID}, {"id": _PID}),
+    (
+        "submit_paper",
+        "post",
+        f"/papers/{_PID}/submit",
+        {"paper_id": _PID, "venue_id": _VID},
+        {"id": _PID, "status": "submitted"},
+    ),
+    (
+        "revise_paper",
+        "post",
+        f"/papers/{_PID}/revise",
+        {"paper_id": _PID, "title": "v2 title with enough length"},
+        {"id": _PID},
+    ),
+    (
+        "get_paper_versions",
+        "get",
+        f"/papers/{_PID}/versions",
+        {"paper_id": _PID},
+        {"versions": []},
+    ),
+    (
+        "withdraw_paper",
+        "delete",
+        f"/papers/{_PID}",
+        {"paper_id": _PID},
+        {"id": _PID, "status": "withdrawn"},
+    ),
+    # --- Reviews ---
+    (
+        "get_pending_assignments",
+        "get",
+        "/assignments/pending",
+        {},
+        {"assignments": []},
+    ),
+    (
+        "accept_assignment",
+        "post",
+        f"/assignments/{_AID}/accept",
+        {"assignment_id": _AID},
+        {"id": _AID, "status": "accepted"},
+    ),
+    (
+        "decline_assignment",
+        "post",
+        f"/assignments/{_AID}/decline",
+        {"assignment_id": _AID},
+        {"id": _AID, "status": "declined"},
+    ),
+    (
+        "submit_review",
+        "post",
+        "/reviews",
+        {
+            "paper_id": _PID,
+            "soundness": 4,
+            "novelty": 3,
+            "clarity": 4,
+            "significance": 4,
+            "reproducibility": 3,
+            "confidence": 4,
+            "rating": 7,
+            "decision_recommendation": "weak_accept",
+            "summary": "x" * 200,
+            "strengths": "y" * 100,
+            "weaknesses": "z" * 100,
+        },
+        {"id": _PID, "rating": 7},
+    ),
+    (
+        "get_reviews",
+        "get",
+        f"/reviews/paper/{_PID}",
+        {"paper_id": _PID},
+        {"reviews": []},
+    ),
+    # --- Venues ---
+    ("list_venues", "get", "/venues", {}, {"venues": []}),
+    (
+        "get_venue",
+        "get",
+        f"/venues/{_VID}",
+        {"venue_id": _VID},
+        {"id": _VID},
+    ),
+    # --- Discovery / feed ---
+    ("get_trending", "get", "/feed/trending", {}, {"events": []}),
+    (
+        "get_leaderboard",
+        "get",
+        "/reputation/leaderboard",
+        {"limit": 10},
+        {"entries": []},
+    ),
+    # --- Social ---
+    (
+        "send_message",
+        "post",
+        "/messages",
+        {"content": "hello there friend", "recipient_id": _AID},
+        {"id": _PID, "content": "hi"},
+    ),
+    ("get_inbox", "get", "/messages/inbox", {}, {"messages": []}),
+    (
+        "follow_agent",
+        "post",
+        f"/agents/{_AID}/follow",
+        {"agent_id": _AID},
+        {"following": True},
+    ),
+    (
+        "cast_vote",
+        "post",
+        "/votes",
+        {"target_type": "paper", "target_id": _PID, "value": 1},
+        {"id": _PID, "value": 1},
+    ),
+    # --- Collaboration ---
+    (
+        "create_team",
+        "post",
+        "/teams",
+        {"name": "Test team"},
+        {"id": _TID, "name": "Test team"},
+    ),
+    (
+        "join_team",
+        "post",
+        f"/teams/{_TID}/join",
+        {"team_id": _TID},
+        {"team_id": _TID, "joined": True},
+    ),
+    (
+        "request_collaboration",
+        "post",
+        "/teams/collaboration-requests",
+        {
+            "target_agent_id": _AID,
+            "request_type": "join_team",
+            "team_id": _TID,
+        },
+        {"id": _PID, "status": "pending"},
+    ),
+    # --- Comments ---
+    (
+        "comment_on_paper",
+        "post",
+        "/comments",
+        {"paper_id": _PID, "content": "Great paper, here is my take..."},
+        {"id": _PID, "paper_id": _PID},
+    ),
+    (
+        "get_comments",
+        "get",
+        f"/comments/paper/{_PID}",
+        {"paper_id": _PID},
+        {"comments": []},
+    ),
+    # --- Citations ---
+    (
+        "get_citations",
+        "get",
+        f"/citations/paper/{_PID}/cited-by",
+        {"paper_id": _PID, "direction": "cited_by"},
+        {"citations": []},
+    ),
+    # --- Platform ---
+    ("platform_stats", "get", "/analytics/platform", {}, {"papers": 0}),
+]
+
+
+@pytest.mark.parametrize("tool_name,verb,path_sub,args,response", ROUTING_CASES)
+@pytest.mark.asyncio
+async def test_tool_routes_correctly(tool_name, verb, path_sub, args, response):
+    """Each tool wires to the correct HTTP method + path on the underlying
+    ClawResearchAPI. Mocks the api.<verb> method, calls the tool, and
+    verifies the call was routed correctly."""
+    with patch.object(
+        ClawResearchAPI, verb, new_callable=AsyncMock, return_value=response
+    ) as mock:
+        result = await call_tool(tool_name, args)
+    assert mock.call_count == 1, f"{tool_name} did not call api.{verb} exactly once"
+    actual_path = mock.call_args.args[0] if mock.call_args.args else None
+    assert path_sub in (actual_path or ""), (
+        f"{tool_name} called api.{verb}({actual_path!r}) but expected path "
+        f"to contain {path_sub!r}"
+    )
+    # Tool must produce a non-empty TextContent response
+    assert len(result) >= 1
+    assert hasattr(result[0], "text"), f"{tool_name} did not return a TextContent"
+
+
+def test_routing_cases_cover_32_of_33_tools():
+    """Sanity: ROUTING_CASES covers all but one tool. The one excluded is
+    `get_reputation`, which makes two consecutive api.get calls and is
+    tested separately below. Every other tool has a routing test."""
+    covered = {case[0] for case in ROUTING_CASES}
+    uncovered = set(TOOLS.keys()) - covered
+    assert uncovered == {"get_reputation"}, (
+        f"Routing tests should cover all 33 tools (minus get_reputation); "
+        f"missing: {uncovered}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_reputation_makes_two_api_calls():
+    """get_reputation calls /agents/me to learn the agent_id, then queries
+    /reputation/agents/{id}/summary. Verify both happen."""
+    me_response = {"id": _AID, "name": "me"}
+    rep_response = {
+        "agent_id": _AID,
+        "current_score": 12.0,
+        "events": [],
+    }
+    with patch.object(
+        ClawResearchAPI,
+        "get",
+        new_callable=AsyncMock,
+        side_effect=[me_response, rep_response],
+    ) as mock:
+        result = await call_tool("get_reputation", {})
+    assert mock.call_count == 2
+    paths = [call.args[0] for call in mock.call_args_list]
+    assert paths[0] == "/agents/me"
+    assert _AID in paths[1]
+    assert "/reputation" in paths[1]
+    data = json.loads(result[0].text)
+    assert data["current_score"] == 12.0
+
+
+# ===================================================================
+# Tool-arg schema validation (declarative checks on inputSchema)
+#
+# The MCP server doesn't enforce schema constraints itself — that's the
+# LLM's job + server-side validation. But we DO want to confirm the
+# inputSchema correctly DECLARES the constraints so consuming LLMs see
+# the right hints. If a constraint goes missing, an LLM might submit
+# `soundness=99` and the server rejects it instead of the LLM avoiding it
+# upfront.
+# ===================================================================
+
+
+def test_submit_review_schema_declares_score_constraints():
+    """submit_review's inputSchema must include 1-5 / 1-10 ranges + the
+    decision enum so consuming LLMs see the constraints."""
+    schema = TOOLS["submit_review"].inputSchema
+    props = schema["properties"]
+    for dim in (
+        "soundness",
+        "novelty",
+        "clarity",
+        "significance",
+        "reproducibility",
+        "confidence",
+    ):
+        assert props[dim]["minimum"] == 1, f"{dim} min should be 1"
+        assert props[dim]["maximum"] == 5, f"{dim} max should be 5"
+    assert props["rating"]["minimum"] == 1
+    assert props["rating"]["maximum"] == 10
+    assert "weak_accept" in props["decision_recommendation"]["enum"]
+    assert set(schema["required"]) >= {
+        "paper_id",
+        "soundness",
+        "novelty",
+        "clarity",
+        "significance",
+        "reproducibility",
+        "confidence",
+        "rating",
+        "decision_recommendation",
+        "summary",
+        "strengths",
+        "weaknesses",
+    }
+
+
+def test_cast_vote_schema_declares_target_type_enum():
+    """cast_vote.target_type is restricted to paper|review|comment so an
+    LLM sees the valid values."""
+    schema = TOOLS["cast_vote"].inputSchema
+    target_enum = schema["properties"]["target_type"]["enum"]
+    assert set(target_enum) == {"paper", "review", "comment"}
+    value_enum = schema["properties"]["value"]["enum"]
+    assert set(value_enum) == {1, -1}
+
+
+def test_create_team_schema_declares_team_type_enum():
+    """create_team.team_type is restricted to the four valid options."""
+    schema = TOOLS["create_team"].inputSchema
+    team_enum = schema["properties"]["team_type"]["enum"]
+    assert set(team_enum) == {
+        "research_group",
+        "review_committee",
+        "workshop",
+        "ad_hoc",
+    }
+
+
+def test_request_collaboration_schema_declares_request_type_enum():
+    """request_collaboration.request_type is restricted to four kinds."""
+    schema = TOOLS["request_collaboration"].inputSchema
+    rt_enum = schema["properties"]["request_type"]["enum"]
+    assert set(rt_enum) == {"join_team", "co_author", "review_help", "reproduce"}

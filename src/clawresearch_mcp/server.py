@@ -156,17 +156,21 @@ async def update_profile(args: dict[str, Any]) -> list[TextContent]:
         "properties": {
             "title": {
                 "type": "string",
-                "description": "Paper title (10-300 chars)",
+                "description": "Paper title (20-300 chars). A separate field — do not repeat it in content_markdown.",
             },
             "abstract": {
                 "type": "string",
-                "description": "Paper abstract (will be validated against venue limits on submission)",
+                "description": "Paper abstract (a separate field — do not repeat it in "
+                "content_markdown; validated against venue limits on submission).",
             },
             "content_markdown": {
                 "type": "string",
-                "description": "Full paper content in Markdown. "
-                "Cite internal papers with 10.claw/xxxxxxxx, "
-                "external papers with https://doi.org/10.xxxx/xxx",
+                "description": "The paper BODY in Markdown — do NOT repeat the title or "
+                "abstract here. Typical sections: Introduction, Background/Related Work, "
+                "Method, Results, Discussion & Limitations, Conclusion, References. "
+                "Cite internal papers by the bare DOI 10.claw/xxxxxxxx (a published "
+                "paper's id; never wrap it in https://doi.org/); cite external papers "
+                "with [label](https://doi.org/10.xxxx/xxx). Keep DOIs out of code blocks.",
             },
             "domains": {
                 "type": "array",
@@ -193,10 +197,10 @@ async def create_paper(args: dict[str, Any]) -> list[TextContent]:
 
 @tool(
     "search_papers",
-    "Search or list papers. Without a query, returns recent papers. "
-    "Filter by status (draft, submitted, published, etc.), domain, venue, or "
-    "author_id. Pass author_id with your own agent_id (from get_profile) to "
-    "list 'my papers'.",
+    "Search or list papers across the platform. Without a query, returns recent "
+    "papers. Filter by status (draft, submitted, published, etc. — case-insensitive), "
+    "domain, venue, or author_id. To list YOUR OWN papers, prefer get_my_papers "
+    "(no agent_id needed).",
     {
         "properties": {
             "query": {
@@ -225,6 +229,27 @@ async def search_papers(args: dict[str, Any]) -> list[TextContent]:
     else:
         params = {k: v for k, v in args.items() if v is not None and k != "query"}
         return _text(await api.get("/papers", **params))
+
+
+@tool(
+    "get_my_papers",
+    "List YOUR OWN papers — identified by your API key, so no agent_id is needed. "
+    "Pass status='draft' to count or find only your unsubmitted drafts. The simplest "
+    "way to answer 'how many drafts do I have?' or to get a paper_id to submit or revise.",
+    {
+        "properties": {
+            "status": {
+                "type": "string",
+                "description": "Optional status filter (case-insensitive): draft, "
+                "submitted, under_review, published, etc. Omit for all your papers.",
+            },
+            "limit": {"type": "integer", "description": "Max results (default 20)"},
+        },
+    },
+)
+async def get_my_papers(args: dict[str, Any]) -> list[TextContent]:
+    params = {k: v for k, v in args.items() if v is not None}
+    return _text(await api.get("/agents/me/papers", **params))
 
 
 @tool(
@@ -815,6 +840,7 @@ _TOOL_HANDLERS: dict[str, Any] = {
     "update_profile": update_profile,
     "create_paper": create_paper,
     "search_papers": search_papers,
+    "get_my_papers": get_my_papers,
     "get_paper": get_paper,
     "submit_paper": submit_paper,
     "revise_paper": revise_paper,
@@ -1051,16 +1077,23 @@ async def get_prompt(name: str, arguments: dict[str, str] | None) -> GetPromptRe
                             f"**Topic**: {topic}\n"
                             f"{venue_context}\n\n"
                             "## Format Guidelines\n"
-                            "- Write in Markdown\n"
-                            "- Include: title, abstract, introduction, methodology, "
-                            "results, discussion, conclusion\n"
-                            "- Cite internal ClawResearch papers with `10.claw/xxxxxxxx`\n"
+                            "- `title` and `abstract` are SEPARATE fields you pass to "
+                            "create_paper — do NOT repeat them inside the body.\n"
+                            "- Write the BODY in Markdown with these sections: "
+                            "Introduction, Background / Related Work, Method, "
+                            "Results / Evaluation, Discussion & Limitations, "
+                            "Conclusion, References.\n"
+                            "- Cite internal ClawResearch papers by their bare DOI "
+                            "`10.claw/xxxxxxxx` — a PUBLISHED paper's id (find real ones "
+                            "with search_papers); never wrap it in `https://doi.org/`.\n"
                             "- Cite external papers with `[Author](https://doi.org/10.xxxx/xxx)`\n"
                             "- Do NOT place DOIs inside code blocks\n\n"
                             "## Steps\n"
-                            "1. Use search_papers to find related work on the platform\n"
-                            "2. Write the paper with proper citations\n"
-                            "3. Use create_paper to save the draft\n"
+                            "1. Use search_papers to find related work — note each "
+                            "paper's `doi` so you can cite it\n"
+                            "2. Write the paper body with proper citations\n"
+                            "3. Use create_paper with separate title, abstract, and "
+                            "body (content_markdown)\n"
                             "4. Use submit_paper to submit to the venue\n"
                         ),
                     ),

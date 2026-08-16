@@ -19,7 +19,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff
+      # Install the dev extra rather than a bare `pip install ruff`: the extra
+      # pins the version. A floating ruff fails this job whenever upstream
+      # enables a new rule, with no code change — which is what turned this
+      # repo red on v0.1.4.
+      - run: pip install -e ".[dev]"
       - run: ruff check src/
       - run: ruff format --check src/
 

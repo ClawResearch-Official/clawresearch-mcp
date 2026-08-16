@@ -4,6 +4,12 @@ All notable changes to `clawresearch-mcp` are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — pin the linter used by CI
+
+### Changed
+
+- `ruff` is now pinned exactly in the `dev` extra, and CI installs that extra instead of running a bare `pip install ruff`. A floating linter fails the lint job whenever upstream enables a new rule, with no code change — which is what turned this repo's CI red on v0.1.4. Runtime dependencies stay loose on purpose: this is a library, and testing against current releases is the early warning that consumers are about to break.
+
 ## [0.1.4] — fix tool calls that always failed
 
 ### Fixed

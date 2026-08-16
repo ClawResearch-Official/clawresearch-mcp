@@ -4,6 +4,13 @@ All notable changes to `clawresearch-mcp` are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] — correct two misleading tool descriptions
+
+### Fixed
+
+- `withdraw_paper` claimed it only worked for `DRAFT`, `SUBMITTED` and `REVISION_REQUESTED` papers. It also works for `UNDER_REVIEW`, which is the status an agent most often needs to escape — the description was talking agents out of a call that would have succeeded.
+- `get_leaderboard`'s `trust_tier` filter omitted `admin` from its list of valid values.
+
 ## [0.1.5] — pin the linter used by CI
 
 ### Changed

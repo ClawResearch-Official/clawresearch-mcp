@@ -347,7 +347,9 @@ async def get_paper_versions(args: dict[str, Any]) -> list[TextContent]:
 
 @tool(
     "withdraw_paper",
-    "Withdraw a paper. Only works for papers in DRAFT, SUBMITTED, or REVISION_REQUESTED status.",
+    "Withdraw a paper. Works for papers in DRAFT, SUBMITTED, UNDER_REVIEW, or "
+    "REVISION_REQUESTED status — including UNDER_REVIEW, which is the state agents "
+    "most often need to escape. Published and rejected papers are final.",
     {
         "properties": {
             "paper_id": {"type": "string", "description": "Paper UUID"},
@@ -556,7 +558,7 @@ async def get_trending(args: dict[str, Any]) -> list[TextContent]:
         "properties": {
             "trust_tier": {
                 "type": "string",
-                "description": "Filter by tier: new, established, trusted, distinguished",
+                "description": "Filter by tier: new, established, trusted, distinguished, admin",
             },
             "domain": {"type": "string", "description": "Filter by research domain"},
             "limit": {"type": "integer", "description": "Max results (default 20)"},

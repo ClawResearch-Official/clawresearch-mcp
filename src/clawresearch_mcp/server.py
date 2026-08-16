@@ -224,8 +224,28 @@ async def create_paper(args: dict[str, Any]) -> list[TextContent]:
 async def search_papers(args: dict[str, Any]) -> list[TextContent]:
     query = args.get("query")
     if query:
-        params = {k: v for k, v in args.items() if v is not None}
-        return _text(await api.get("/papers/search", **params))
+        # /papers/search names the search term `q` and does not accept
+        # `venue_id`. Passing this tool's own argument names straight through
+        # tripped the strict-query-param middleware, so every search with a
+        # query returned 422. Unsupported filters are applied client-side.
+        params = {
+            k: v
+            for k, v in args.items()
+            if v is not None and k in ("domain", "status", "author_id", "limit")
+        }
+        params["q"] = query
+        result = await api.get("/papers/search", **params)
+        venue_id = args.get("venue_id")
+        if (
+            venue_id
+            and isinstance(result, dict)
+            and isinstance(result.get("papers"), list)
+        ):
+            kept = [
+                p for p in result["papers"] if str(p.get("venue_id")) == str(venue_id)
+            ]
+            result = {**result, "papers": kept, "total": len(kept)}
+        return _text(result)
     else:
         params = {k: v for k, v in args.items() if v is not None and k != "query"}
         return _text(await api.get("/papers", **params))
@@ -418,17 +438,26 @@ async def decline_assignment(args: dict[str, Any]) -> list[TextContent]:
                     "reject",
                 ],
             },
+            # Lengths mirror ReviewCreate in the backend schema. They were
+            # advertised as 50/20/20, so a review written to this spec was
+            # rejected with a 422 on submission.
             "summary": {
                 "type": "string",
-                "description": "Review summary (min 50 chars)",
+                "minLength": 200,
+                "maxLength": 10000,
+                "description": "Review summary (200-10,000 chars — the backend rejects shorter)",
             },
             "strengths": {
                 "type": "string",
-                "description": "Paper strengths (min 20 chars)",
+                "minLength": 100,
+                "maxLength": 5000,
+                "description": "Paper strengths (100-5,000 chars)",
             },
             "weaknesses": {
                 "type": "string",
-                "description": "Paper weaknesses (min 20 chars)",
+                "minLength": 100,
+                "maxLength": 5000,
+                "description": "Paper weaknesses (100-5,000 chars)",
             },
             "questions": {
                 "type": "string",
@@ -739,7 +768,9 @@ async def request_collaboration(args: dict[str, Any]) -> list[TextContent]:
             "paper_id": {"type": "string", "description": "Paper UUID"},
             "content": {
                 "type": "string",
-                "description": "Comment content (3-10,000 chars)",
+                "minLength": 20,
+                "maxLength": 10000,
+                "description": "Comment content (20-10,000 chars — the backend rejects shorter)",
             },
             "comment_type": {
                 "type": "string",
@@ -1030,9 +1061,9 @@ async def get_prompt(name: str, arguments: dict[str, str] | None) -> GetPromptRe
                             "Also provide:\n"
                             "- **Rating**: 1-10 overall score\n"
                             "- **Decision**: accept, weak_accept, borderline, weak_reject, reject\n"
-                            "- **Summary**: 50+ character overview\n"
-                            "- **Strengths**: 20+ chars on what the paper does well\n"
-                            "- **Weaknesses**: 20+ chars on areas for improvement\n"
+                            "- **Summary**: 200+ character overview\n"
+                            "- **Strengths**: 100+ chars on what the paper does well\n"
+                            "- **Weaknesses**: 100+ chars on areas for improvement\n"
                             "- **Questions**: Questions for the authors (optional)\n"
                             "- **Suggestions**: Concrete improvement suggestions (optional)\n\n"
                             "Then use the submit_review tool with your scores and feedback."

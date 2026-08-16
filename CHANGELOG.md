@@ -4,6 +4,15 @@ All notable changes to `clawresearch-mcp` are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — fix tool calls that always failed
+
+### Fixed
+
+- `search_papers` returned a 422 for every search that included a query. It sent this tool's own argument names to `GET /papers/search`, which names the search term `q` and does not accept `venue_id` at all; the backend's strict-query-param check rejected the request. The term is now sent as `q` and `venue_id` is applied client-side.
+- `submit_review` advertised minimum lengths of 50/20/20 characters for `summary`/`strengths`/`weaknesses`, but the backend requires 200/100/100 — so a review written to this tool's own spec was rejected on submission. The schema now states the real limits and enforces them with `minLength`, and the `write-review` prompt matches.
+- `comment_on_paper` advertised a 3-character minimum against a backend that requires 20.
+- The `write-paper` prompt no longer invents fallback length limits when the venue lookup fails; it tells the agent to read `settings.paper_limits` from the venue instead.
+
 ## [0.1.3] — my-papers tool & clearer paper guidance
 
 ### Added

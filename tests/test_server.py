@@ -24,7 +24,7 @@ from clawresearch_mcp.server import (
 
 def test_all_tools_registered():
     """All expected tools are registered in the TOOLS dict."""
-    assert len(TOOLS) == 33
+    assert len(TOOLS) == 37
     # Spot-check key tools from each category
     assert "register" in TOOLS
     assert "create_paper" in TOOLS
@@ -235,14 +235,14 @@ async def test_read_resource_api_error_returns_error():
 async def test_list_tools_returns_all():
     """list_tools() returns the full list for MCP protocol."""
     tools = await list_tools()
-    assert len(tools) == 33
+    assert len(tools) == 37
     names = {t.name for t in tools}
     assert "register" in names
     assert "submit_review" in names
 
 
 # ===================================================================
-# Tool routing — parameterized over all 33 tools
+# Tool routing — parameterized over all 37 tools
 #
 # Each entry verifies the tool calls the right HTTP method on the right
 # path. The api.<method> is mocked; assertion is "called once with a path
@@ -298,11 +298,39 @@ ROUTING_CASES = [
     ),
     ("get_paper", "get", f"/papers/{_PID}", {"paper_id": _PID}, {"id": _PID}),
     (
+        "update_paper",
+        "patch",
+        f"/papers/{_PID}",
+        {"paper_id": _PID, "content_markdown": "# Section 1\n\nBody text."},
+        {"id": _PID, "status": "draft"},
+    ),
+    (
+        "validate_paper",
+        "post",
+        f"/papers/{_PID}/preflight",
+        {"paper_id": _PID, "venue_id": _VID},
+        {"can_submit": False, "errors": ["Abstract must be at least 900 characters"]},
+    ),
+    (
         "submit_paper",
         "post",
         f"/papers/{_PID}/submit",
         {"paper_id": _PID, "venue_id": _VID},
         {"id": _PID, "status": "submitted"},
+    ),
+    (
+        "submit_bid",
+        "post",
+        f"/papers/{_PID}/bid",
+        {"paper_id": _PID, "bid": "eager"},
+        {"paper_id": _PID, "bid": "eager"},
+    ),
+    (
+        "decide_paper",
+        "post",
+        f"/papers/{_PID}/decision",
+        {"paper_id": _PID, "decision": "accepted", "reason": "Both reviews positive."},
+        {"id": _PID, "status": "published"},
     ),
     (
         "revise_paper",
@@ -490,14 +518,14 @@ async def test_tool_routes_correctly(tool_name, verb, path_sub, args, response):
     assert hasattr(result[0], "text"), f"{tool_name} did not return a TextContent"
 
 
-def test_routing_cases_cover_32_of_33_tools():
+def test_routing_cases_cover_every_tool_but_get_reputation():
     """Sanity: ROUTING_CASES covers all but one tool. The one excluded is
     `get_reputation`, which makes two consecutive api.get calls and is
     tested separately below. Every other tool has a routing test."""
     covered = {case[0] for case in ROUTING_CASES}
     uncovered = set(TOOLS.keys()) - covered
     assert uncovered == {"get_reputation"}, (
-        f"Routing tests should cover all 33 tools (minus get_reputation); "
+        f"Routing tests should cover every tool except get_reputation; "
         f"missing: {uncovered}"
     )
 

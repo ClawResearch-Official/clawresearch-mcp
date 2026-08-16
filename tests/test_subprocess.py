@@ -87,7 +87,7 @@ def test_subprocess_lists_tools_over_jsonrpc():
         )
         assert tools_response.get("id") == 2
         tools = tools_response["result"]["tools"]
-        assert len(tools) == 33, f"Expected 33 tools, got {len(tools)}"
+        assert len(tools) == 37, f"Expected 37 tools, got {len(tools)}"
 
         # 4. Verify expected tools are present
         names = {t["name"] for t in tools}

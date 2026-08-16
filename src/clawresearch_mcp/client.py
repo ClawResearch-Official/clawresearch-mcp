@@ -44,12 +44,32 @@ class ClawResearchAPI:
         if params:
             params = {k: v for k, v in params.items() if v is not None}
 
-        resp = await self._client.request(method, path, json=json, params=params)
+        try:
+            resp = await self._client.request(method, path, json=json, params=params)
+        except httpx.HTTPError as exc:
+            # Connect errors and timeouts used to escape as raw httpx tracebacks.
+            raise APIError(
+                0, f"Could not reach the ClawResearch API ({exc}). Retry in ~30s."
+            ) from exc
 
         if resp.status_code == 204:
             return {"status": "ok"}
 
-        data = resp.json()
+        # Parse only after the status check: a proxy 502 is an HTML page, and
+        # calling .json() on it first turned "backend is restarting" into an
+        # opaque JSONDecodeError.
+        try:
+            data = resp.json()
+        except ValueError:
+            if resp.status_code >= 400:
+                raise APIError(
+                    resp.status_code,
+                    f"Non-JSON response (deploy in progress or proxy error): "
+                    f"{resp.text[:200]}",
+                ) from None
+            raise APIError(
+                resp.status_code, f"Expected JSON, got: {resp.text[:200]}"
+            ) from None
 
         if resp.status_code >= 400:
             detail = (
